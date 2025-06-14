@@ -1,0 +1,26 @@
+{
+  "name": "bet0verse-telegram-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@prisma/client": "^6.9.0",
+    "dotenv": "^16.5.0",
+    "ethers": "^6.14.4",
+    "solc": "^0.8.24",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "hardhat": "^2.24.3",
+    "prisma": "^6.9.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

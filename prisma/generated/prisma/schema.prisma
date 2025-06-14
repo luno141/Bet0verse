@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId String   @unique
+  username   String?
+  createdAt  DateTime @default(now())
+
+  bets         Bet[]
+  transactions Transaction[]
+  markets      Market[]      @relation("UserMarkets")
+}
+
+model Market {
+  id        Int      @id @default(autoincrement())
+  question  String
+  createdBy Int
+  status    String   @default("open") // "open", "closed", "resolved"
+  createdAt DateTime @default(now())
+
+  creator User  @relation("UserMarkets", fields: [createdBy], references: [id])
+  bets    Bet[]
+}
+
+model Bet {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  marketId   Int
+  prediction String // "yes" or "no"
+  amount     Float
+  placedAt   DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  market Market @relation(fields: [marketId], references: [id])
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  txHash    String   @unique
+  amount    Float
+  type      String // "deposit" | "payout"
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
