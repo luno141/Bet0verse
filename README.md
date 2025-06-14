@@ -26,7 +26,7 @@ TECH STACK
 SETUP & DEPLOYMENT
 ------------------
   1. Clone repository:
-     git clone https://github.com/<username>/Bet0verse.git
+     git clone https://github.com/<username>/Bet0verse.git, 
      cd Bet0verse
 
   2. Install dependencies:
