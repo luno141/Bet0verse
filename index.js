@@ -3,34 +3,29 @@ const { Telegraf } = require("telegraf");
 const { PrismaClient } = require("@prisma/client");
 const bettingContract = require("./utils/monad");
 
-
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const prisma = new PrismaClient();
 
-// /start command
 bot.start((ctx) => {
-  ctx.reply("👋 Welcome to Bet0verse!\nUse /register to get started.");
+  ctx.reply("👋 Welcome to Bet0verse!\nUse /register to get started.\nCommands: /linkwallet, /createbet, /placebet, /listmarkets, /resolvebets, /balance, /withdraw");
 });
 
-// /register command
 bot.command("register", async (ctx) => {
   const telegramId = String(ctx.from.id);
   const username = ctx.from.username || null;
-
   try {
     await prisma.user.upsert({
       where: { telegramId },
       update: {},
       create: { telegramId, username },
     });
-    ctx.reply("✅ You are registered!");
+    ctx.reply("✅ You have entered the Bet0Verse!\nUse /linkwallet <address> to connect your wallet.");
   } catch (err) {
     console.error("Registration error:", err);
     ctx.reply("❌ Registration failed.");
   }
 });
 
-// /linkwallet <walletAddress>
 bot.command("linkwallet", async (ctx) => {
   const [_, walletAddress] = ctx.message.text.split(" ");
   const telegramId = String(ctx.from.id);
@@ -40,9 +35,9 @@ bot.command("linkwallet", async (ctx) => {
   }
 
   try {
-    const user = await prisma.user.update({
+    await prisma.user.update({
       where: { telegramId },
-      data: { walletAddress }
+      data: { walletAddress },
     });
     ctx.reply(`✅ Wallet linked: ${walletAddress}`);
   } catch (err) {
@@ -51,7 +46,6 @@ bot.command("linkwallet", async (ctx) => {
   }
 });
 
-// /createbet <question>
 bot.command("createbet", async (ctx) => {
   const telegramId = String(ctx.from.id);
   const question = ctx.message.text.replace("/createbet", "").trim();
@@ -69,33 +63,33 @@ bot.command("createbet", async (ctx) => {
       },
     });
 
-    ctx.reply(`🧠 Market created:\n"${market.question}"\nMarket ID: ${market.id}`);
+    ctx.reply(`🧠 Market created:\n\"${market.question}\"\nMarket ID: ${market.id}`);
   } catch (err) {
     console.error("Create bet error:", err);
     ctx.reply("❌ Failed to create market.");
   }
 });
 
-// /placebet <marketId> <yes|no> <amount>
 bot.command("placebet", async (ctx) => {
-  const args = ctx.message.text.split(" ");
+  const args = ctx.message.text.trim().split(" ");
   if (args.length !== 4) {
     return ctx.reply("❗ Usage: /placebet <marketId> <yes|no> <amount>");
   }
 
-  const [, marketId, prediction, amountStr] = args;
+  const [, marketIdStr, prediction, amountStr] = args;
   const telegramId = String(ctx.from.id);
+  const marketId = parseInt(marketIdStr);
   const amount = parseFloat(amountStr);
 
-  if (!["yes", "no"].includes(prediction)) {
-    return ctx.reply("❌ Prediction must be 'yes' or 'no'.");
-  }
+  if (isNaN(marketId)) return ctx.reply("❌ Market ID must be a number.");
+  if (!["yes", "no"].includes(prediction.toLowerCase())) return ctx.reply("❌ Prediction must be 'yes' or 'no'.");
+  if (isNaN(amount) || amount <= 0) return ctx.reply("❌ Invalid amount.");
 
   try {
     const user = await prisma.user.findUnique({ where: { telegramId } });
     if (!user) return ctx.reply("❌ Please register first using /register.");
 
-    const market = await prisma.market.findUnique({ where: { id: parseInt(marketId) } });
+    const market = await prisma.market.findUnique({ where: { id: marketId } });
     if (!market) return ctx.reply("❌ Market not found.");
 
     await prisma.bet.create({
@@ -107,73 +101,81 @@ bot.command("placebet", async (ctx) => {
       },
     });
 
-    ctx.reply(`✅ Bet placed: ${prediction} with ${amount} coins on market #${marketId}`);
+    ctx.reply(`✅ Bet placed: ${prediction} with ${amount} MONAD on market #${marketId}`);
   } catch (err) {
     console.error("Place bet error:", err);
     ctx.reply("❌ Failed to place bet.");
   }
 });
 
-// /listmarkets – List all open markets
 bot.command("listmarkets", async (ctx) => {
   const markets = await prisma.market.findMany({
     where: { status: "open" },
     include: { creator: true },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 
   if (markets.length === 0) {
     return ctx.reply("No open markets at the moment.");
   }
 
-  const message = markets.map(m =>
-    `🆔 ID: ${m.id}\n❓ ${m.question}\n👤 Created by: ${m.creator.username || m.creator.telegramId}\n📅 ${m.createdAt.toLocaleString()}\n---`
-  ).join("\n\n");
+  const message = markets
+    .map(
+      (m) =>
+        `🆔 ID: ${m.id}\n❓ ${m.question}\n👤 Created by: ${m.creator.username || m.creator.telegramId}\n📅 ${m.createdAt.toLocaleString()}\n---`
+    )
+    .join("\n\n");
 
   ctx.reply(message);
 });
 
-// /resolvebets <marketId> <yes|no>
 bot.command("resolvebets", async (ctx) => {
-  const [_, marketId, outcome] = ctx.message.text.split(" ");
+  const [_, marketIdStr, outcome] = ctx.message.text.split(" ");
+  const marketId = parseInt(marketIdStr);
 
-  if (!marketId || !["yes", "no"].includes(outcome)) {
-    return ctx.reply("Usage: /resolvebets <marketId> <yes|no>");
+  if (!marketIdStr || isNaN(marketId) || !["yes", "no"].includes(outcome)) {
+    return ctx.reply("❗ Usage: /resolvebets <marketId> <yes|no>");
   }
 
-  const market = await prisma.market.findUnique({ where: { id: Number(marketId) } });
-  if (!market) return ctx.reply("❌ Market not found.");
-  if (market.status !== "open") return ctx.reply("⚠️ Market already closed or resolved.");
+  try {
+    const market = await prisma.market.findUnique({ where: { id: marketId } });
+    if (!market) return ctx.reply("❌ Market not found.");
+    if (market.status !== "open") return ctx.reply("⚠️ Market already resolved.");
 
-  await prisma.market.update({
-    where: { id: Number(marketId) },
-    data: { status: "resolved" }
-  });
-
-  const winners = await prisma.bet.findMany({
-    where: {
-      marketId: Number(marketId),
-      prediction: outcome
-    }
-  });
-
-  if (winners.length === 0) return ctx.reply("⚠️ No winners for this market.");
-
-  await Promise.all(winners.map(async (bet) => {
-    await prisma.transaction.create({
-      data: {
-        userId: bet.userId,
-        amount: bet.amount * 2,
-        txHash: `mocktx_${Date.now()}_${bet.id}`,
-        type: "payout"
-      }
+    await prisma.market.update({
+      where: { id: marketId },
+      data: { status: "resolved" },
     });
-  }));
 
-  ctx.reply(`✅ Market resolved. Paid out ${winners.length} winning bets.`);
+    const winners = await prisma.bet.findMany({
+      where: {
+        marketId: marketId,
+        prediction: outcome,
+      },
+    });
+
+    if (winners.length === 0) return ctx.reply("⚠️ No winners for this market.");
+
+    await Promise.all(
+      winners.map(async (bet) => {
+        await prisma.transaction.create({
+          data: {
+            userId: bet.userId,
+            amount: bet.amount * 2,
+            txHash: `mocktx_${Date.now()}_${bet.id}`,
+            type: "payout",
+          },
+        });
+      })
+    );
+
+    ctx.reply(`✅ Market resolved. Paid out ${winners.length} winning bets.`);
+  } catch (err) {
+    console.error("Resolve bet error:", err);
+    ctx.reply("❌ Failed to resolve market.");
+  }
 });
 
-// /balance – Show user balance + wallet
 bot.command("balance", async (ctx) => {
   const telegramId = String(ctx.from.id);
   const user = await prisma.user.findUnique({ where: { telegramId } });
@@ -182,12 +184,63 @@ bot.command("balance", async (ctx) => {
 
   const transactions = await prisma.transaction.findMany({ where: { userId: user.id } });
   const balance = transactions.reduce((acc, tx) => {
-    return tx.type === "deposit" ? acc + tx.amount : acc - tx.amount;
+    return tx.type === "deposit" || tx.type === "payout"
+      ? acc + tx.amount
+      : acc - tx.amount;
   }, 0);
 
-  ctx.reply(`💰 Your current balance is: ${balance.toFixed(2)} MONAD\n🔗 Wallet: ${user.walletAddress || "Not linked"}`);
+  ctx.reply(
+    `💰 Your current balance is: ${balance.toFixed(2)} MONAD\n🔗 Wallet: ${
+      user.walletAddress || "Not linked"
+    }`
+  );
 });
 
-// Launch the bot
+bot.command("withdraw", async (ctx) => {
+  const [_, amountStr] = ctx.message.text.split(" ");
+  const amount = parseFloat(amountStr);
+  const telegramId = String(ctx.from.id);
+
+  if (isNaN(amount) || amount <= 0) {
+    return ctx.reply("❗ Usage: /withdraw <amount>");
+  }
+
+  const user = await prisma.user.findUnique({ where: { telegramId } });
+  if (!user || !user.walletAddress) {
+    return ctx.reply("❌ You must register and link a wallet first.");
+  }
+
+  const transactions = await prisma.transaction.findMany({ where: { userId: user.id } });
+  const balance = transactions.reduce((acc, tx) => {
+    return tx.type === "deposit" || tx.type === "payout"
+      ? acc + tx.amount
+      : acc - tx.amount;
+  }, 0);
+
+  if (amount > balance) {
+    return ctx.reply("❌ Insufficient balance.");
+  }
+
+  try {
+    const txHash = `mock_withdraw_${Date.now()}`;
+    await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        amount,
+        txHash,
+        type: "withdrawal",
+      },
+    });
+
+    ctx.reply(`✅ Withdrawal of ${amount} MONAD initiated.\n📦 tx: ${txHash}`);
+  } catch (err) {
+    console.error("Withdraw error:", err);
+    ctx.reply("❌ Withdrawal failed.");
+  }
+});
+
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
+
 bot.launch();
 console.log("🤖 Bet0verse Frankenstein is ALIVE.");
