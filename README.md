@@ -1,25 +1,79 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bet0verse Telegram Bot Documentation</title>
-  <link rel="icon" href="https://telegram.org/img/t_logo.png" />
-</head>
-<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f8fafc;">
-  
-  <!-- Header -->
-  <header style="background-color: #0f172a; color: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
-    <h1 style="font-size: 2.5rem; border-bottom: 3px solid #4f46e5; padding-bottom: 0.5rem; margin: 0;">Bet0verse Telegram Bot Documentation</h1>
-    <p style="font-size: 1.2rem; margin-top: 0.5rem;">A professional-grade Telegram bot for on-chain prediction markets on Monad testnet</p>
-  </header>
+BET0VERSE TELEGRAM BOT DOCUMENTATION
+====================================
 
-  <!-- Main content goes here -->
-  <!-- [Keep everything you wrote above: Overview, Tech Stack, Setup, etc.] -->
+OVERVIEW
+--------
+Bet0verse is a professional-grade Telegram bot that enables users to engage in on-chain prediction markets on the Monad testnet. It combines Telegram's chat interface with blockchain security for accessible market operations.
 
-  <!-- Footer -->
-  <footer style="margin-top: 3rem; text-align: center; padding: 1rem; border-top: 1px solid #ddd;">
-    <p>Bet0verse Telegram Bot Documentation &copy; 2025</p>
-  </footer>
-</body>
-</html>
+TECH STACK
+----------
+  Runtime:
+  - Node.js (JavaScript runtime)
+  - Telegraf (Telegram bot framework)
+  - ethers.js (Ethereum/Monad interactions)
+
+  Database:
+  - PostgreSQL (Relational database)
+  - Prisma ORM (Database client & migrations)
+
+  Smart Contracts:
+  - Solidity (Betting.sol)
+  - Hardhat (Compile & deploy contracts)
+
+  Configuration:
+  - dotenv (Environment variable management)
+
+SETUP & DEPLOYMENT
+------------------
+  1. Clone repository:
+     git clone https://github.com/<username>/Bet0verse.git
+     cd Bet0verse
+
+  2. Install dependencies:
+     npm install
+
+  3. Configure environment:
+     Create .env file with:
+     - TELEGRAM_BOT_TOKEN
+     - DATABASE_URL
+     - MONAD_PRIVATE_KEY
+
+  4. Database setup:
+     npx prisma migrate dev --name init
+     npx prisma generate
+
+  5. Compile & deploy contract:
+     npx hardhat compile
+     npx hardhat run scripts/deploy.js --network monad
+     (Copy address to utils/monad.js)
+
+  6. Launch bot:
+     node index.js
+
+COMMAND REFERENCE
+----------------
+  /start        - Welcome message and instructions
+  /help         - List all commands
+  /register     - Create/update user profile
+  /linkwallet   - Associate Monad testnet wallet
+  /createbet    - Open new prediction market
+  /listmarkets  - Browse open markets
+  /placebet     - Stake on market outcome
+  /resolvebets  - Close market and issue payouts
+  /balance      - Check MONAD token balance
+  /withdraw     - Initiate on-chain withdrawal
+
+CONTRIBUTION GUIDELINES
+-----------------------
+  1. Fork the repository
+  2. Create feature branch:
+     git checkout -b feat/your-feature
+  3. Commit changes:
+     git commit -m "Add your feature"
+  4. Push to branch:
+     git push origin feat/your-feature
+  5. Open pull request
+
+ABOUT
+-----
+Developed for Monad Blitz Delhi, leveraging Monad's high-performance EVM. Combines Telegram accessibility with blockchain security for prediction markets.
